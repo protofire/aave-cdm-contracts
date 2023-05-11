@@ -1,20 +1,22 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.18;
 
 // import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./interfaces/AaveDebtToken.sol";
-import "./interfaces/ICreditDelegatinVault.sol";
+import "./interfaces/ICreditDelegationVault.sol";
 import "./interfaces/IAavePool.sol";
 
-contract CreditDelegationVault is ICreditDelegatinVault, ReentrancyGuard {
+contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     using SafeMath for uint;
+    using SafeERC20 for IERC20;
 
-    address owner;
-    address manager;
+    address public owner;
+    address public manager;
     address factory;
     address public ATOMICA_POOL;
     address public DEBT_TOKEN;
@@ -31,6 +33,8 @@ contract CreditDelegationVault is ICreditDelegatinVault, ReentrancyGuard {
         address _debtToken
     ) external override {
         require(factory == address(0), "CDV001: Initialization Unauthorized");
+        require(_owner != address(0), "CDV002: Owner is the zero address");
+        require(_manager != address(0), "CDV003: Manager is the zero address");
         owner = _owner;
         manager = _manager;
         ATOMICA_POOL = _atomicaPool;
@@ -45,12 +49,12 @@ contract CreditDelegationVault is ICreditDelegatinVault, ReentrancyGuard {
     );
 
     modifier onlyOwner() {
-        require(msg.sender == owner, "CDV002: Only owner");
+        require(msg.sender == owner, "CDV004: Only owner");
         _;
     }
 
     modifier onlyManager() {
-        require(msg.sender == manager, "CDV003: Only manager");
+        require(msg.sender == manager, "CDV005: Only manager");
         _;
     }
 
@@ -59,10 +63,10 @@ contract CreditDelegationVault is ICreditDelegatinVault, ReentrancyGuard {
     ) external nonReentrant onlyManager onlyOwner {
         address aavePool = _getAavePool();
         address asset = _getUnderlyingAsset();
-        IAavePool(aavePool).borrow(asset, amount, 2, 0, owner);
-        IERC20(asset).transfer(ATOMICA_POOL, amount);
-        _transferPoolTokens();
         loanAmount += amount;
+        IAavePool(aavePool).borrow(asset, amount, 2, 0, owner);
+        IERC20(asset).safeTransfer(ATOMICA_POOL, amount);
+        _transferPoolTokens();
         emit Borrow(address(this), owner, amount);
     }
 
@@ -81,7 +85,7 @@ contract CreditDelegationVault is ICreditDelegatinVault, ReentrancyGuard {
 
     function _transferPoolTokens() internal {
         uint256 balance = IERC20(ATOMICA_POOL).balanceOf(address(this));
-        IERC20(ATOMICA_POOL).transfer(owner, balance);
+        IERC20(ATOMICA_POOL).safeTransfer(owner, balance);
     }
 
     function _getAavePool() internal view returns (address) {

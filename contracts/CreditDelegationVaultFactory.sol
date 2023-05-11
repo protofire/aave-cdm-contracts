@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.18;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
 
-import "./interfaces/AaveDebtToken.sol";
-import "./interfaces/ICreditDelegatinVault.sol";
+import "./interfaces/ICreditDelegationVault.sol";
 
 contract CreditDelegationVaultFactory {
-    address public AAVE_CDV_IMPLEMENTATION;
+    address public immutable CDV_IMPLEMENTATION;
 
     constructor(address _impl) {
-        AAVE_CDV_IMPLEMENTATION = _impl;
+        require(
+            _impl != address(0),
+            "CDVF001: Implementation is the zero address"
+        );
+        CDV_IMPLEMENTATION = _impl;
     }
 
     event VaultCreated(address indexed vault, address indexed owner);
@@ -18,17 +21,15 @@ contract CreditDelegationVaultFactory {
     function deployVault(
         address _manager,
         address _atomicaPool,
-        address _debtToken,
-        uint256 _allowanceAmount
+        address _debtToken
     ) external returns (address vault) {
-        vault = Clones.clone(AAVE_CDV_IMPLEMENTATION);
-        ICreditDelegatinVault(vault).initialize(
+        vault = Clones.clone(CDV_IMPLEMENTATION);
+        ICreditDelegationVault(vault).initialize(
             msg.sender,
             _manager,
             _atomicaPool,
             _debtToken
         );
-        AaveDebtToken(_debtToken).approveDelegation(vault, _allowanceAmount);
         emit VaultCreated(vault, msg.sender);
     }
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.18;
 
-interface ICreditDelegatinVault {
+interface ICreditDelegationVault {
     function initialize(
         address _owner,
         address _manager,

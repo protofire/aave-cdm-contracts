@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.19;
+pragma solidity 0.8.18;
 
 interface AaveDebtToken {
     function borrowAllowance(
@@ -12,6 +12,4 @@ interface AaveDebtToken {
     function UNDERLYING_ASSET_ADDRESS() external view returns (address);
 
     function POOL() external view returns (address);
-
-    function approveDelegation(address delegatee, uint256 amount) external;
 }
