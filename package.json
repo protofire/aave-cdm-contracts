@@ -1,0 +1,16 @@
+{
+  "name": "hardhat-project",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "REPORT_GAS=true npx hardhat test",
+    "verify": "npx hardhat verify --network kovan",
+    "deploy": "npx hardhat run scripts/deploy.ts --network kovan"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "hardhat": "^2.14.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.8.3"
+  }
+}
