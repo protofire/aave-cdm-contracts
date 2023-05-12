@@ -4,12 +4,12 @@ pragma solidity 0.8.18;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract DebtTokenMock is ERC20 {
-    address ASSET_ADDRESS;
-    address POOL_ADDRESS;
+    address assetAddress;
+    address poolAddress;
 
     constructor(address asset, address pool) ERC20("DebtToken", "debt") {
-        ASSET_ADDRESS = asset;
-        POOL_ADDRESS = pool;
+        assetAddress = asset;
+        poolAddress = pool;
         _mint(msg.sender, 1000e18);
     }
 
@@ -18,11 +18,11 @@ contract DebtTokenMock is ERC20 {
     }
 
     function UNDERLYING_ASSET_ADDRESS() external view returns (address) {
-        return ASSET_ADDRESS;
+        return assetAddress;
     }
 
     function POOL() external view returns (address) {
-        return POOL_ADDRESS;
+        return poolAddress;
     }
 
     function borrowAllowance(

@@ -4,16 +4,16 @@ pragma solidity 0.8.18;
 // import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+// import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./interfaces/AaveDebtToken.sol";
 import "./interfaces/ICreditDelegationVault.sol";
 import "./interfaces/IAavePool.sol";
+import "./interfaces/IAtomicaPool.sol";
 
 contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     using SafeMath for uint;
-    using SafeERC20 for IERC20;
 
     address public owner;
     address public manager;
@@ -53,19 +53,20 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         _;
     }
 
-    modifier onlyManager() {
-        require(msg.sender == manager, "CDV005: Only manager");
+    modifier onlyOwnerOrManager() {
+        require(
+            msg.sender == owner || msg.sender == manager,
+            "CDV005: Only owner or manager"
+        );
         _;
     }
 
-    function borrow(
-        uint256 amount
-    ) external nonReentrant onlyManager onlyOwner {
+    function borrow(uint256 amount) external nonReentrant onlyOwnerOrManager {
         address aavePool = _getAavePool();
         address asset = _getUnderlyingAsset();
         loanAmount += amount;
         IAavePool(aavePool).borrow(asset, amount, 2, 0, owner);
-        IERC20(asset).safeTransfer(ATOMICA_POOL, amount);
+        _depositToPool(asset, amount);
         _transferPoolTokens();
         emit Borrow(address(this), owner, amount);
     }
@@ -84,8 +85,19 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     }
 
     function _transferPoolTokens() internal {
-        uint256 balance = IERC20(ATOMICA_POOL).balanceOf(address(this));
-        IERC20(ATOMICA_POOL).safeTransfer(owner, balance);
+        uint256 balance = IAtomicaPool(ATOMICA_POOL).balanceOf(address(this));
+        require(
+            IAtomicaPool(ATOMICA_POOL).transfer(owner, balance),
+            "CDV006: Failed at transfering pool tokens"
+        );
+    }
+
+    function _depositToPool(address asset, uint256 amount) internal {
+        require(
+            IERC20(asset).approve(ATOMICA_POOL, amount),
+            "CDV007: Failed to approve tokens to deposit on Atomica"
+        );
+        IAtomicaPool(ATOMICA_POOL).deposit(amount);
     }
 
     function _getAavePool() internal view returns (address) {
