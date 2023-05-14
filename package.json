@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "test": "REPORT_GAS=true npx hardhat test",
-    "verify": "npx hardhat verify --network kovan",
-    "deploy": "npx hardhat run scripts/deploy.ts --network kovan",
+    "verify": "npx hardhat verify --network mumbai",
+    "deploy": "npx hardhat run scripts/deploy.ts --network mumbai",
     "slither": "slither ."
   },
   "devDependencies": {
@@ -12,6 +12,7 @@
     "hardhat": "^2.14.0"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.8.3"
+    "@openzeppelin/contracts": "^4.8.3",
+    "dotenv": "^16.0.3"
   }
 }
