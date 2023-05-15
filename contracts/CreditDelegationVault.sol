@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.18;
 
-// import "hardhat/console.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-// import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
 import "./interfaces/AaveDebtToken.sol";
@@ -63,7 +61,7 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
 
     function borrow(uint256 amount) external nonReentrant onlyOwnerOrManager {
         address aavePool = _getAavePool();
-        address asset = _getUnderlyingAsset();
+        address asset = getUnderlyingAsset();
         loanAmount += amount;
         IAavePool(aavePool).borrow(asset, amount, 2, 0, owner);
         _depositToPool(asset, amount);
@@ -78,6 +76,10 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     function changeManager(address _newManager) external onlyOwner {
         manager = _newManager;
         emit ManagerChanged(address(this), owner, manager);
+    }
+
+    function getUnderlyingAsset() public view returns (address) {
+        return AaveDebtToken(DEBT_TOKEN).UNDERLYING_ASSET_ADDRESS();
     }
 
     function _borrowAllowance() internal view returns (uint256) {
@@ -102,9 +104,5 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
 
     function _getAavePool() internal view returns (address) {
         return AaveDebtToken(DEBT_TOKEN).POOL();
-    }
-
-    function _getUnderlyingAsset() internal view returns (address) {
-        return AaveDebtToken(DEBT_TOKEN).UNDERLYING_ASSET_ADDRESS();
     }
 }

@@ -14,4 +14,6 @@ interface ICreditDelegationVault {
     function borrowAllowance() external view returns (uint256);
 
     function changeManager(address _newManager) external;
+
+    function getUnderlyingAsset() external view returns (address);
 }
