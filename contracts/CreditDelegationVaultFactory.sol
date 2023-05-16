@@ -7,6 +7,7 @@ import "./interfaces/ICreditDelegationVault.sol";
 
 contract CreditDelegationVaultFactory {
     address public immutable CDV_IMPLEMENTATION;
+    mapping(address => address[]) vaults;
 
     constructor(address _impl) {
         require(
@@ -30,6 +31,13 @@ contract CreditDelegationVaultFactory {
             _atomicaPool,
             _debtToken
         );
+        vaults[msg.sender].push(vault);
         emit VaultCreated(vault, msg.sender);
+    }
+
+    function vaultsByOwner(
+        address _owner
+    ) external view returns (address[] memory) {
+        return vaults[_owner];
     }
 }
