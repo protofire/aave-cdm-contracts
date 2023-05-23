@@ -76,6 +76,31 @@ describe("Credit Delegation Vault Factory", () => {
         await debtToken.borrowAllowance(owner.address, vault.address)
       ).to.equal(allowanceAmount);
     });
+
+    it("Should correctly keep record of vaults deployed by owner", async () => {
+      const [owner, manager, atomicaPool1, atomicaPool2] =
+        await ethers.getSigners();
+      const tx1 = await cdvFactory.deployVault(
+        manager.address,
+        atomicaPool1.address,
+        debtToken.address
+      );
+      const tx2 = await cdvFactory.deployVault(
+        manager.address,
+        atomicaPool2.address,
+        debtToken.address
+      );
+
+      const receipt1 = await tx1.wait();
+      const receipt2 = await tx2.wait();
+      const vaultEvent1 = getFromEvent(receipt1, "VaultCreated");
+      const vaultEvent2 = getFromEvent(receipt2, "VaultCreated");
+
+      const vaults = await cdvFactory.vaultsByOwner(owner.address);
+
+      expect(vaults[1]).to.be.equal(vaultEvent1[0]);
+      expect(vaults[2]).to.be.equal(vaultEvent2[0]);
+    });
   });
 });
 
