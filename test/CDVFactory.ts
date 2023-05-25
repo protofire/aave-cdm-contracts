@@ -13,6 +13,8 @@ import {
 import { DebtTokenMock } from "../typechain-types/contracts/mocks/DebtToken.sol";
 import { DebtTokenMock__factory } from "../typechain-types/factories/contracts/mocks/DebtToken.sol";
 
+import { predictAndSignPermit } from "./helpers/contractHelpers";
+
 let cdvFactory_factory: CreditDelegationVaultFactory__factory;
 let cdvFactory: CreditDelegationVaultFactory;
 let impl_factory: CreditDelegationVault__factory;
@@ -30,7 +32,6 @@ describe("Credit Delegation Vault Factory", () => {
         cdvFactory_factory.deploy("0x0000000000000000000000000000000000000000")
       ).to.be.revertedWith("CDVF001: Implementation is the zero address");
     });
-
     it("Should successfully deploy an factory", async () => {
       cdvFactory_factory = await ethers.getContractFactory(
         "CreditDelegationVaultFactory"
@@ -41,33 +42,40 @@ describe("Credit Delegation Vault Factory", () => {
       expect(await cdvFactory.CDV_IMPLEMENTATION()).to.be.eq(impl.address);
     });
   });
-
   describe("Deploy vault", async () => {
     before(() => setup());
-
     it("Should deploy a vault with the correct settings", async () => {
       const allowanceAmount = ethers.utils.parseEther("100");
       const [owner, manager, atomicaPool] = await ethers.getSigners();
 
+      const { v, r, s } = await predictAndSignPermit(
+        cdvFactory,
+        debtToken,
+        owner,
+        allowanceAmount
+      );
+
       const tx = await cdvFactory.deployVault(
         manager.address,
         atomicaPool.address,
-        debtToken.address
+        debtToken.address,
+        allowanceAmount,
+        2661766724,
+        v,
+        r,
+        s
       );
-
       const receipt = await tx.wait();
       const vautEvent = getFromEvent(receipt, "VaultCreated");
       const vault = await ethers.getContractAt(
         "CreditDelegationVault",
         vautEvent[0]
       );
-
       const txAllowance = await debtToken.approveDelegation(
         vault.address,
         allowanceAmount
       );
       await txAllowance.wait();
-
       expect(await vault.owner()).to.equal(owner.address);
       expect(await vault.manager()).to.equal(manager.address);
       expect(await vault.ATOMICA_POOL()).to.equal(atomicaPool.address);
@@ -80,24 +88,47 @@ describe("Credit Delegation Vault Factory", () => {
     it("Should correctly keep record of vaults deployed by owner", async () => {
       const [owner, manager, atomicaPool1, atomicaPool2] =
         await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+
+      const { v, r, s } = await predictAndSignPermit(
+        cdvFactory,
+        debtToken,
+        owner,
+        allowanceAmount
+      );
+
       const tx1 = await cdvFactory.deployVault(
         manager.address,
         atomicaPool1.address,
-        debtToken.address
+        debtToken.address,
+        allowanceAmount,
+        2661766724,
+        v,
+        r,
+        s
+      );
+
+      let sig = await predictAndSignPermit(
+        cdvFactory,
+        debtToken,
+        owner,
+        allowanceAmount
       );
       const tx2 = await cdvFactory.deployVault(
         manager.address,
         atomicaPool2.address,
-        debtToken.address
+        debtToken.address,
+        allowanceAmount,
+        2661766724,
+        sig.v,
+        sig.r,
+        sig.s
       );
-
       const receipt1 = await tx1.wait();
       const receipt2 = await tx2.wait();
       const vaultEvent1 = getFromEvent(receipt1, "VaultCreated");
       const vaultEvent2 = getFromEvent(receipt2, "VaultCreated");
-
       const vaults = await cdvFactory.vaultsByOwner(owner.address);
-
       expect(vaults[1]).to.be.equal(vaultEvent1[0]);
       expect(vaults[2]).to.be.equal(vaultEvent2[0]);
     });

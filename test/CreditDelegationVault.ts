@@ -3,6 +3,8 @@ import { ethers } from "hardhat";
 import { ContractReceipt } from "@ethersproject/contracts/src.ts";
 import { BigNumber } from "@ethersproject/bignumber";
 
+import { predictAndSignPermit } from "./helpers/contractHelpers";
+
 import {
   CreditDelegationVaultFactory,
   CreditDelegationVault,
@@ -38,11 +40,24 @@ describe("Credit Delegation Vault", () => {
 
   describe("Initialization", async () => {
     it("Should not accept zero address for manager", async () => {
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const [owner] = await ethers.getSigners();
+      const { v, r, s } = await predictAndSignPermit(
+        cdvFactory,
+        debtToken,
+        owner,
+        allowanceAmount
+      );
       await expect(
         cdvFactory.deployVault(
           "0x0000000000000000000000000000000000000000",
           "0x0000000000000000000000000000000000000000",
-          debtToken.address
+          debtToken.address,
+          allowanceAmount,
+          2661766724,
+          v,
+          r,
+          s
         )
       ).to.be.revertedWith("CDV003: Manager is the zero address");
     });
@@ -63,10 +78,12 @@ describe("Credit Delegation Vault", () => {
   describe("Access and view functions", () => {
     it("Should not allow not owner/manager calling borrow", async () => {
       const [_, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
       const vault = await deployVault(
         manager.address,
         pool.address,
-        debtToken.address
+        allowanceAmount,
+        _
       );
       await expect(
         vault.connect(pool).borrow(ethers.utils.parseEther("100"))
@@ -74,10 +91,12 @@ describe("Credit Delegation Vault", () => {
     });
     it("Should not allow not owner calling change manager", async () => {
       const [_, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
       const vault = await deployVault(
         manager.address,
         pool.address,
-        debtToken.address
+        allowanceAmount,
+        _
       );
       await expect(
         vault.connect(manager).changeManager(pool.address)
@@ -85,27 +104,28 @@ describe("Credit Delegation Vault", () => {
     });
     it("Should successfully change manager", async () => {
       const [_, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
       const vault = await deployVault(
         manager.address,
         pool.address,
-        debtToken.address
+        allowanceAmount,
+        _
       );
       expect(await vault.manager()).to.be.eq(manager.address);
 
       const tx = await vault.changeManager(pool.address);
       await tx.wait();
-
       expect(await vault.manager()).to.be.eq(pool.address);
     });
     it("Should successfully return borrow allowance", async () => {
       const [_, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
       const vault = await deployVault(
         manager.address,
         pool.address,
-        debtToken.address
+        allowanceAmount,
+        _
       );
-      const allowanceAmount = ethers.utils.parseEther("100");
-      await debtToken.approveDelegation(vault.address, allowanceAmount);
       expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
     });
   });
@@ -113,13 +133,14 @@ describe("Credit Delegation Vault", () => {
   describe("Borrow", async () => {
     it("Should borrow successfully as a manager", async () => {
       const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
       const vault = await deployVault(
         manager.address,
         atomicaPool.address,
-        debtToken.address
+        amount,
+        owner
       );
-      const amount = ethers.utils.parseEther("100");
-      await debtToken.approveDelegation(vault.address, amount);
+
       await fundAavePool(amount);
       const tx = await vault.connect(manager).borrow(amount);
       const receipt = await tx.wait();
@@ -130,16 +151,16 @@ describe("Credit Delegation Vault", () => {
       expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(amount);
       expect(await vault.loanAmount()).to.be.eq(amount);
     });
-
     it("Should borrow successfully as a owner", async () => {
       const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
       const vault = await deployVault(
         manager.address,
         atomicaPool.address,
-        debtToken.address
+        amount,
+        owner
       );
-      const amount = ethers.utils.parseEther("100");
-      await debtToken.approveDelegation(vault.address, amount);
+
       await fundAavePool(amount);
       const tx = await vault.borrow(amount);
       const receipt = await tx.wait();
@@ -150,16 +171,16 @@ describe("Credit Delegation Vault", () => {
       expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(amount);
       expect(await vault.loanAmount()).to.be.eq(amount);
     });
-
     it("Should revert with the borrow amount is bigger than approved", async () => {
       const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
       const vault = await deployVault(
         manager.address,
         atomicaPool.address,
-        debtToken.address
+        amount,
+        owner
       );
-      const amount = ethers.utils.parseEther("100");
-      await debtToken.approveDelegation(vault.address, amount);
+
       await fundAavePool(amount);
       await expect(
         vault.borrow(ethers.utils.parseEther("1000"))
@@ -203,9 +224,25 @@ const getFromEvent = (receipt: ContractReceipt, eventName: string) => {
 const deployVault = async (
   manager: string,
   pool: string,
-  debtToken: string
+  allowanceAmount: BigNumber,
+  owner: any
 ) => {
-  const tx = await cdvFactory.deployVault(manager, pool, debtToken);
+  const { v, r, s } = await predictAndSignPermit(
+    cdvFactory,
+    debtToken,
+    owner,
+    allowanceAmount
+  );
+  const tx = await cdvFactory.deployVault(
+    manager,
+    pool,
+    debtToken.address,
+    allowanceAmount,
+    2661766724,
+    v,
+    r,
+    s
+  );
   const receipt = await tx.wait();
   const vaultEvent = getFromEvent(receipt, "VaultCreated");
   return ethers.getContractAt("CreditDelegationVault", vaultEvent[0]);

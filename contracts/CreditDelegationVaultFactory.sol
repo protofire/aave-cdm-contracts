@@ -4,6 +4,8 @@ pragma solidity 0.8.18;
 import "@openzeppelin/contracts/proxy/Clones.sol";
 
 import "./interfaces/ICreditDelegationVault.sol";
+import "./CreditDelegationVault.sol";
+import "./interfaces/AaveDebtToken.sol";
 
 contract CreditDelegationVaultFactory {
     address public immutable CDV_IMPLEMENTATION;
@@ -20,16 +22,30 @@ contract CreditDelegationVaultFactory {
     event VaultCreated(address indexed vault, address indexed owner);
 
     function deployVault(
-        address _manager,
-        address _atomicaPool,
-        address _debtToken
+        address manager,
+        address atomicaPool,
+        address debtToken,
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
     ) external returns (address vault) {
         vault = Clones.clone(CDV_IMPLEMENTATION);
         ICreditDelegationVault(vault).initialize(
             msg.sender,
-            _manager,
-            _atomicaPool,
-            _debtToken
+            manager,
+            atomicaPool,
+            debtToken
+        );
+        AaveDebtToken(debtToken).delegationWithSig(
+            msg.sender,
+            vault,
+            value,
+            deadline,
+            v,
+            r,
+            s
         );
         vaults[msg.sender].push(vault);
         emit VaultCreated(vault, msg.sender);
