@@ -29,7 +29,8 @@ contract CreditDelegationVaultFactory {
         uint256 deadline,
         uint8 v,
         bytes32 r,
-        bytes32 s
+        bytes32 s,
+        uint256 percentage
     ) external returns (address vault) {
         vault = Clones.clone(CDV_IMPLEMENTATION);
         ICreditDelegationVault(vault).initialize(

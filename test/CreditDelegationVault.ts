@@ -73,6 +73,25 @@ describe("Credit Delegation Vault", () => {
         )
       ).to.be.revertedWith("CDV001: Initialization Unauthorized");
     });
+
+    it("Should not allow initialize an vault already initialized", async () => {
+      const [owner, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const vault = await deployVault(
+        manager.address,
+        pool.address,
+        allowanceAmount,
+        owner
+      );
+      await expect(
+        vault.initialize(
+          owner.address,
+          manager.address,
+          pool.address,
+          debtToken.address
+        )
+      ).to.be.revertedWith("CDV001: Initialization Unauthorized");
+    });
   });
 
   describe("Access and view functions", () => {
@@ -87,7 +106,7 @@ describe("Credit Delegation Vault", () => {
       );
       await expect(
         vault.connect(pool).borrow(ethers.utils.parseEther("100"))
-      ).to.be.revertedWith("CDV005: Only owner or manager");
+      ).to.be.revertedWith("CDV005: Only authorized");
     });
     it("Should not allow not owner calling change manager", async () => {
       const [_, manager, pool] = await ethers.getSigners();
