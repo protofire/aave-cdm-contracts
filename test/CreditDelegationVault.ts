@@ -3,7 +3,7 @@ import { ethers } from "hardhat";
 import { ContractReceipt } from "@ethersproject/contracts/src.ts";
 import { BigNumber } from "@ethersproject/bignumber";
 
-import { predictAndSignPermit } from "./helpers/contractHelpers";
+import { predictAndSignPermit, signPermit } from "./helpers/contractHelpers";
 
 import {
   CreditDelegationVaultFactory,
@@ -21,13 +21,19 @@ import { AavePoolMock } from "../typechain-types/contracts/mocks/AavePool.sol";
 import { AavePoolMock__factory } from "../typechain-types/factories/contracts/mocks/AavePool.sol";
 import { TokenERC20Mock } from "../typechain-types/contracts/mocks/TokenERC20.sol";
 import { TokenERC20Mock__factory } from "../typechain-types/factories/contracts/mocks/TokenERC20.sol";
+import {
+  DebtToken6DecimalsMock,
+  DebtToken6DecimalsMock__factory,
+} from "../typechain-types";
 
 let cdvFactory_factory: CreditDelegationVaultFactory__factory;
 let cdvFactory: CreditDelegationVaultFactory;
 let impl_factory: CreditDelegationVault__factory;
 let impl: CreditDelegationVault;
 let debtToken_factory: DebtTokenMock__factory;
+let debtToken6decimals_factory: DebtToken6DecimalsMock__factory;
 let debtToken: DebtTokenMock;
+let debtToken6decimals: DebtToken6DecimalsMock;
 let atomicaPool_factory: AtomicaPoolMock__factory;
 let atomicaPool: AtomicaPoolMock;
 let aavePool_factory: AavePoolMock__factory;
@@ -57,19 +63,36 @@ describe("Credit Delegation Vault", () => {
           2661766724,
           v,
           r,
-          s
+          s,
+          ethers.utils.parseEther("0"),
+          ethers.utils.parseEther("2")
         )
       ).to.be.revertedWith("CDV003: Manager is the zero address");
     });
 
     it("Should not initialize an vault with factory as zero address", async () => {
+      const allowanceAmount = ethers.utils.parseEther("100");
       const [owner, manager, pool] = await ethers.getSigners();
+      const { v, r, s } = await predictAndSignPermit(
+        cdvFactory,
+        debtToken,
+        owner,
+        allowanceAmount
+      );
+
       await expect(
         impl.initialize(
           owner.address,
           manager.address,
           pool.address,
-          debtToken.address
+          debtToken.address,
+          ethers.utils.parseEther("2"),
+          allowanceAmount,
+          2661766724,
+          v,
+          r,
+          s,
+          ethers.utils.parseEther("0")
         )
       ).to.be.revertedWith("CDV001: Initialization Unauthorized");
     });
@@ -77,58 +100,175 @@ describe("Credit Delegation Vault", () => {
     it("Should not allow initialize an vault already initialized", async () => {
       const [owner, manager, pool] = await ethers.getSigners();
       const allowanceAmount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { v, r, s } = await predictAndSignPermit(
+        cdvFactory,
+        debtToken,
+        owner,
+        allowanceAmount
+      );
+
+      const { vault } = await deployVault(
         manager.address,
         pool.address,
         allowanceAmount,
-        owner
+        owner,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
       await expect(
         vault.initialize(
           owner.address,
           manager.address,
           pool.address,
-          debtToken.address
+          debtToken.address,
+          ethers.utils.parseEther("2"),
+          allowanceAmount,
+          2661766724,
+          v,
+          r,
+          s,
+          ethers.utils.parseEther("0")
         )
       ).to.be.revertedWith("CDV001: Initialization Unauthorized");
     });
+    it("Should perform an borrow/deposit at initializion if percentage is 10%", async () => {
+      const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("200");
+      const initAmount = ethers.utils.parseEther("20");
+      await fundAavePool(amount);
+      const { vault } = await deployVault(
+        manager.address,
+        atomicaPool.address,
+        amount,
+        owner,
+        ethers.utils.parseEther("10"),
+        ethers.utils.parseEther("2")
+      );
+      expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
+      expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(
+        initAmount
+      );
+      expect(await vault.loanAmount()).to.be.eq(initAmount);
+    });
+    it("Should perform an borrow/deposit at initializion if percentage is 15%", async () => {
+      const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
+      const initAmount = ethers.utils.parseEther("15");
+      await fundAavePool(amount);
+      const { vault } = await deployVault(
+        manager.address,
+        atomicaPool.address,
+        amount,
+        owner,
+        ethers.utils.parseEther("15"),
+        ethers.utils.parseEther("2")
+      );
+      expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
+      expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(
+        initAmount
+      );
+      expect(await vault.loanAmount()).to.be.eq(initAmount);
+    });
+    it("Should perform an borrow/deposit at initializion if percentage is 33%", async () => {
+      const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
+      const initAmount = ethers.utils.parseEther("33");
+      await fundAavePool(amount);
+      const { vault } = await deployVault(
+        manager.address,
+        atomicaPool.address,
+        amount,
+        owner,
+        ethers.utils.parseEther("33"),
+        ethers.utils.parseEther("2")
+      );
+      expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
+      expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(
+        initAmount
+      );
+      expect(await vault.loanAmount()).to.be.eq(initAmount);
+    });
+    it("Should perform an borrow/deposit at initializion if percentage is 98%", async () => {
+      const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
+      const initAmount = ethers.utils.parseEther("98");
+      await fundAavePool(amount);
+      const { vault } = await deployVault(
+        manager.address,
+        atomicaPool.address,
+        amount,
+        owner,
+        ethers.utils.parseEther("98"),
+        ethers.utils.parseEther("2")
+      );
+      expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
+      expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(
+        initAmount
+      );
+      expect(await vault.loanAmount()).to.be.eq(initAmount);
+    });
+    it("Should perform an borrow/deposit at initializion if percentage is 15% and the decimals are 6", async () => {
+      const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
+      const initAmount = ethers.utils.parseEther("15");
+      await fundAavePool(amount);
+      const { vault } = await deployVault(
+        manager.address,
+        atomicaPool.address,
+        amount,
+        owner,
+        ethers.utils.parseEther("15"),
+        ethers.utils.parseEther("2")
+      );
+      expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
+      expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(
+        initAmount
+      );
+      expect(await vault.loanAmount()).to.be.eq(initAmount);
+    });
   });
 
-  describe("Access and view functions", () => {
+  describe("Access and config functions", () => {
     it("Should not allow not owner/manager calling borrow", async () => {
-      const [_, manager, pool] = await ethers.getSigners();
+      const [owner, manager, pool] = await ethers.getSigners();
       const allowanceAmount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { vault } = await deployVault(
         manager.address,
         pool.address,
         allowanceAmount,
-        _
+        owner,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
       await expect(
         vault.connect(pool).borrow(ethers.utils.parseEther("100"))
       ).to.be.revertedWith("CDV005: Only authorized");
     });
     it("Should not allow not owner calling change manager", async () => {
-      const [_, manager, pool] = await ethers.getSigners();
+      const [owner, manager, pool] = await ethers.getSigners();
       const allowanceAmount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { vault } = await deployVault(
         manager.address,
         pool.address,
         allowanceAmount,
-        _
+        owner,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
       await expect(
         vault.connect(manager).changeManager(pool.address)
       ).to.be.revertedWith("CDV004: Only owner");
     });
     it("Should successfully change manager", async () => {
-      const [_, manager, pool] = await ethers.getSigners();
+      const [owner, manager, pool] = await ethers.getSigners();
       const allowanceAmount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { vault } = await deployVault(
         manager.address,
         pool.address,
         allowanceAmount,
-        _
+        owner,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
       expect(await vault.manager()).to.be.eq(manager.address);
 
@@ -137,15 +277,121 @@ describe("Credit Delegation Vault", () => {
       expect(await vault.manager()).to.be.eq(pool.address);
     });
     it("Should successfully return borrow allowance", async () => {
-      const [_, manager, pool] = await ethers.getSigners();
+      const [owner, manager, pool] = await ethers.getSigners();
       const allowanceAmount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { vault } = await deployVault(
         manager.address,
         pool.address,
         allowanceAmount,
-        _
+        owner,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
       expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
+    });
+    it("Should successfully change interest rate model", async () => {
+      const [owner, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const model = ethers.utils.parseEther("2");
+      const { vault } = await deployVault(
+        manager.address,
+        pool.address,
+        allowanceAmount,
+        owner,
+        ethers.utils.parseEther("0"),
+        model
+      );
+      expect(await vault.model()).to.be.eq(model);
+      await vault.setModel(ethers.utils.parseEther("1"));
+      expect(await vault.model()).to.be.eq(ethers.utils.parseEther("1"));
+    });
+    it("Shouldnt allow change interest rate model if not owner", async () => {
+      const [owner, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const model = ethers.utils.parseEther("2");
+      const { vault } = await deployVault(
+        manager.address,
+        pool.address,
+        allowanceAmount,
+        owner,
+        ethers.utils.parseEther("0"),
+        model
+      );
+      await expect(
+        vault.connect(manager).setModel(ethers.utils.parseEther("1"))
+      ).to.be.revertedWith("CDV004: Only owner");
+    });
+    it("Should successfully increase borrow allowance", async () => {
+      const [owner, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const newAllowanceAmount = ethers.utils.parseEther("150");
+      const model = ethers.utils.parseEther("2");
+      const { vault } = await deployVault(
+        manager.address,
+        pool.address,
+        allowanceAmount,
+        owner,
+        ethers.utils.parseEther("0"),
+        model
+      );
+      expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
+      const { v, r, s } = await signPermit(
+        debtToken,
+        owner,
+        newAllowanceAmount,
+        vault.address
+      );
+      await vault.updateAllowance(newAllowanceAmount, 2661766724, v, r, s);
+      expect(await vault.borrowAllowance()).to.be.eq(newAllowanceAmount);
+    });
+    it("Should successfully decrease borrow allowance", async () => {
+      const [owner, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const newAllowanceAmount = ethers.utils.parseEther("0");
+      const model = ethers.utils.parseEther("2");
+      const { vault } = await deployVault(
+        manager.address,
+        pool.address,
+        allowanceAmount,
+        owner,
+        ethers.utils.parseEther("0"),
+        model
+      );
+      expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
+      const { v, r, s } = await signPermit(
+        debtToken,
+        owner,
+        newAllowanceAmount,
+        vault.address
+      );
+      await vault.updateAllowance(newAllowanceAmount, 2661766724, v, r, s);
+      expect(await vault.borrowAllowance()).to.be.eq(newAllowanceAmount);
+    });
+    it("Shouldnt allow update borrow allowance if not owner", async () => {
+      const [owner, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const newAllowanceAmount = ethers.utils.parseEther("0");
+      const model = ethers.utils.parseEther("2");
+      const { vault } = await deployVault(
+        manager.address,
+        pool.address,
+        allowanceAmount,
+        owner,
+        ethers.utils.parseEther("0"),
+        model
+      );
+      expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
+      const { v, r, s } = await signPermit(
+        debtToken,
+        manager,
+        newAllowanceAmount,
+        vault.address
+      );
+      await expect(
+        vault
+          .connect(manager)
+          .updateAllowance(newAllowanceAmount, 2661766724, v, r, s)
+      ).to.be.revertedWith("CDV004: Only owner");
     });
   });
 
@@ -153,11 +399,13 @@ describe("Credit Delegation Vault", () => {
     it("Should borrow successfully as a manager", async () => {
       const [owner, manager] = await ethers.getSigners();
       const amount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { vault } = await deployVault(
         manager.address,
         atomicaPool.address,
         amount,
-        owner
+        owner,
+        BigNumber.from(0),
+        BigNumber.from(2)
       );
 
       await fundAavePool(amount);
@@ -173,11 +421,13 @@ describe("Credit Delegation Vault", () => {
     it("Should borrow successfully as a owner", async () => {
       const [owner, manager] = await ethers.getSigners();
       const amount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { vault } = await deployVault(
         manager.address,
         atomicaPool.address,
         amount,
-        owner
+        owner,
+        BigNumber.from(0),
+        BigNumber.from(2)
       );
 
       await fundAavePool(amount);
@@ -193,11 +443,13 @@ describe("Credit Delegation Vault", () => {
     it("Should revert with the borrow amount is bigger than approved", async () => {
       const [owner, manager] = await ethers.getSigners();
       const amount = ethers.utils.parseEther("100");
-      const vault = await deployVault(
+      const { vault } = await deployVault(
         manager.address,
         atomicaPool.address,
         amount,
-        owner
+        owner,
+        BigNumber.from(0),
+        BigNumber.from(2)
       );
 
       await fundAavePool(amount);
@@ -224,12 +476,23 @@ const setup = async () => {
   tokenErc20_factory = await ethers.getContractFactory("TokenERC20Mock");
   atomicaPool_factory = await ethers.getContractFactory("AtomicaPoolMock");
   aavePool_factory = await ethers.getContractFactory("AavePoolMock");
+  debtToken6decimals_factory = await ethers.getContractFactory(
+    "DebtToken6DecimalsMock"
+  );
   impl = await impl_factory.deploy();
   cdvFactory = await cdvFactory_factory.deploy(impl.address);
   aavePool = await aavePool_factory.deploy();
   tokenErc20 = await tokenErc20_factory.deploy();
   atomicaPool = await atomicaPool_factory.deploy(tokenErc20.address);
   debtToken = await debtToken_factory.deploy(
+    tokenErc20.address,
+    aavePool.address
+  );
+  debtToken6decimals = await debtToken_factory.deploy(
+    tokenErc20.address,
+    aavePool.address
+  );
+  debtToken6decimals = await debtToken_factory.deploy(
     tokenErc20.address,
     aavePool.address
   );
@@ -244,27 +507,39 @@ const deployVault = async (
   manager: string,
   pool: string,
   allowanceAmount: BigNumber,
-  owner: any
+  owner: any,
+  percentage: BigNumber,
+  model: BigNumber,
+  sixDecimals?: boolean
 ) => {
   const { v, r, s } = await predictAndSignPermit(
     cdvFactory,
-    debtToken,
+    sixDecimals ? debtToken6decimals : debtToken,
     owner,
     allowanceAmount
   );
   const tx = await cdvFactory.deployVault(
     manager,
     pool,
-    debtToken.address,
+    sixDecimals ? debtToken6decimals.address : debtToken.address,
     allowanceAmount,
     2661766724,
     v,
     r,
-    s
+    s,
+    percentage,
+    model
   );
   const receipt = await tx.wait();
   const vaultEvent = getFromEvent(receipt, "VaultCreated");
-  return ethers.getContractAt("CreditDelegationVault", vaultEvent[0]);
+  const vault = await ethers.getContractAt(
+    "CreditDelegationVault",
+    vaultEvent[0]
+  );
+  return {
+    vault,
+    receipt,
+  };
 };
 
 const fundAavePool = async (amount: BigNumber) => {

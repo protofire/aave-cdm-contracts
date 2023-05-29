@@ -63,7 +63,9 @@ describe("Credit Delegation Vault Factory", () => {
         2661766724,
         v,
         r,
-        s
+        s,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
       const receipt = await tx.wait();
       const vautEvent = getFromEvent(receipt, "VaultCreated");
@@ -83,6 +85,7 @@ describe("Credit Delegation Vault Factory", () => {
       expect(
         await debtToken.borrowAllowance(owner.address, vault.address)
       ).to.equal(allowanceAmount);
+      expect(await cdvFactory.nonces(owner.address)).to.be.eq(1);
     });
 
     it("Should correctly keep record of vaults deployed by owner", async () => {
@@ -105,7 +108,9 @@ describe("Credit Delegation Vault Factory", () => {
         2661766724,
         v,
         r,
-        s
+        s,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
 
       let sig = await predictAndSignPermit(
@@ -122,7 +127,9 @@ describe("Credit Delegation Vault Factory", () => {
         2661766724,
         sig.v,
         sig.r,
-        sig.s
+        sig.s,
+        ethers.utils.parseEther("0"),
+        ethers.utils.parseEther("2")
       );
       const receipt1 = await tx1.wait();
       const receipt2 = await tx2.wait();
@@ -131,6 +138,7 @@ describe("Credit Delegation Vault Factory", () => {
       const vaults = await cdvFactory.vaultsByOwner(owner.address);
       expect(vaults[1]).to.be.equal(vaultEvent1[0]);
       expect(vaults[2]).to.be.equal(vaultEvent2[0]);
+      expect(await cdvFactory.nonces(owner.address)).to.be.eq(3);
     });
   });
 });

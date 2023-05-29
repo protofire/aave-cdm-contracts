@@ -44,26 +44,13 @@ export const getSignatureFromTypedData = (signature: string) => {
   return ethers.utils.splitSignature(signature);
 };
 
-export const getTransactionCount = (address: string) => {
-  return ethers.provider.getTransactionCount(address);
-};
-
-export const predictVaultAddress = (from: string, nonce: number) => {
-  return ethers.utils.getContractAddress({ from, nonce });
-};
-
 export const predictAndSignPermit = async (
   factory: CreditDelegationVaultFactory,
   debtToken: DebtTokenMock,
   owner: any,
   allowanceAmount: BigNumber
 ) => {
-  const contractNonce = await getTransactionCount(factory.address);
-  const predictedVaultAddress = predictVaultAddress(
-    factory.address,
-    contractNonce
-  );
-
+  const predictedVaultAddress = await factory.predictVaultAddress();
   const nonces = await debtToken.nonces(owner.address);
   const signature = await signTypedData(
     owner,
@@ -73,5 +60,22 @@ export const predictAndSignPermit = async (
     debtToken.address
   );
 
+  return getSignatureFromTypedData(signature);
+};
+
+export const signPermit = async (
+  debtToken: DebtTokenMock,
+  owner: any,
+  allowanceAmount: BigNumber,
+  vault: string
+) => {
+  const nonces = await debtToken.nonces(owner.address);
+  const signature = await signTypedData(
+    owner,
+    vault,
+    allowanceAmount,
+    nonces,
+    debtToken.address
+  );
   return getSignatureFromTypedData(signature);
 };
