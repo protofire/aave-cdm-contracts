@@ -1,5 +1,7 @@
 # Aave Credit Delegation Contracts
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Aave credit delegation is a collection of smart contracts designed to bring peer to pool for aave's credit delegation. This repository contains the source code for the smart contracts, as well as unit tests and deployment scripts.
 
 ## Table of Contents
@@ -34,7 +36,7 @@ git clone https://github.com/protofire/aave-cdm-contracts.git
 Change to the project directory:
 
 ```bash
-cd project-name
+cd aave-cdm-contracts
 ```
 
 Install the dependencies:
@@ -66,4 +68,6 @@ npm run deploy
 
 > **_NOTE:_** The package.json script command for deploy is set to mumbai, please make sure to change the network
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
