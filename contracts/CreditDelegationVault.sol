@@ -11,8 +11,6 @@ import "./interfaces/ICreditDelegationVault.sol";
 import "./interfaces/IAavePool.sol";
 import "./interfaces/IAtomicaPool.sol";
 
-import "hardhat/console.sol";
-
 contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     using SafeMath for uint;
     using ECDSA for bytes32;
@@ -94,6 +92,10 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     }
 
     function changeManager(address _newManager) external onlyOwner {
+        require(
+            _newManager != address(0),
+            "CDV008: Manager is the zero address"
+        );
         manager = _newManager;
         emit ManagerChanged(address(this), owner, manager);
     }
