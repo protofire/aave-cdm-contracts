@@ -5,7 +5,8 @@
     "test": "REPORT_GAS=true npx hardhat test",
     "verify": "npx hardhat verify --network mumbai",
     "deploy": "npx hardhat run scripts/deploy.ts --network mumbai",
-    "slither": "slither ."
+    "slither": "slither .",
+    "compile": "npx hardhat compile"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^2.0.2",

@@ -8,8 +8,6 @@ import "./interfaces/ICreditDelegationVault.sol";
 import "./CreditDelegationVault.sol";
 import "./interfaces/AaveDebtToken.sol";
 
-// import "hardhat/console.sol";
-
 contract CreditDelegationVaultFactory {
     using Counters for Counters.Counter;
 
@@ -41,6 +39,7 @@ contract CreditDelegationVaultFactory {
     ) external returns (address vault) {
         bytes32 salt = _generateSalt();
         vault = Clones.cloneDeterministic(CDV_IMPLEMENTATION, salt);
+        vaults[msg.sender].push(vault);
         ICreditDelegationVault(vault).initialize(
             msg.sender,
             manager,
@@ -54,7 +53,6 @@ contract CreditDelegationVaultFactory {
             s,
             percentage
         );
-        vaults[msg.sender].push(vault);
         emit VaultCreated(vault, msg.sender);
     }
 
