@@ -37,6 +37,7 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         manager = _manager;
         ATOMICA_POOL = _atomicaPool;
         DEBT_TOKEN = _debtToken;
+        factory = msg.sender;
     }
 
     event Borrow(address indexed vault, address indexed owner, uint256 amount);
