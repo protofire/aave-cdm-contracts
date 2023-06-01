@@ -225,6 +225,7 @@ describe("Credit Delegation Vault", () => {
         initAmount
       );
       expect(await vault.loanAmount()).to.be.eq(initAmount);
+    });
   });
 
   describe("Access and config functions", () => {
