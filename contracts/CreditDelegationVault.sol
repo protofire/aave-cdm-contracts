@@ -4,21 +4,26 @@ pragma solidity 0.8.18;
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import "./interfaces/AaveDebtToken.sol";
 import "./interfaces/ICreditDelegationVault.sol";
 import "./interfaces/IAavePool.sol";
 import "./interfaces/IAtomicaPool.sol";
 
+import "hardhat/console.sol";
+
 contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     using SafeMath for uint;
+    using ECDSA for bytes32;
 
+    address factory;
     address public owner;
     address public manager;
-    address factory;
     address public ATOMICA_POOL;
     address public DEBT_TOKEN;
     uint256 public loanAmount;
+    uint256 public model;
 
     constructor() {
         factory = address(0xdead);
@@ -28,7 +33,14 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         address _owner,
         address _manager,
         address _atomicaPool,
-        address _debtToken
+        address _debtToken,
+        uint256 _model,
+        uint256 _value,
+        uint256 _deadline,
+        uint8 _v,
+        bytes32 _r,
+        bytes32 _s,
+        uint256 _percentage
     ) external override {
         require(factory == address(0), "CDV001: Initialization Unauthorized");
         require(_owner != address(0), "CDV002: Owner is the zero address");
@@ -38,6 +50,11 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         ATOMICA_POOL = _atomicaPool;
         DEBT_TOKEN = _debtToken;
         factory = msg.sender;
+        model = _model;
+        _delegationWithSig(_value, _deadline, _v, _r, _s);
+        if (_percentage > 0) {
+            _initBorrow(_value, _percentage);
+        }
     }
 
     event Borrow(address indexed vault, address indexed owner, uint256 amount);
@@ -52,19 +69,21 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         _;
     }
 
-    modifier onlyOwnerOrManager() {
+    modifier onlyAuthorized() {
         require(
-            msg.sender == owner || msg.sender == manager,
-            "CDV005: Only owner or manager"
+            msg.sender == owner ||
+                msg.sender == manager ||
+                msg.sender == factory,
+            "CDV005: Only authorized"
         );
         _;
     }
 
-    function borrow(uint256 amount) external nonReentrant onlyOwnerOrManager {
+    function borrow(uint256 amount) public nonReentrant onlyAuthorized {
         address aavePool = _getAavePool();
         address asset = getUnderlyingAsset();
         loanAmount += amount;
-        IAavePool(aavePool).borrow(asset, amount, 2, 0, owner);
+        IAavePool(aavePool).borrow(asset, amount, model, 0, owner);
         _depositToPool(asset, amount);
         _transferPoolTokens();
         emit Borrow(address(this), owner, amount);
@@ -81,6 +100,20 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
 
     function getUnderlyingAsset() public view returns (address) {
         return AaveDebtToken(DEBT_TOKEN).UNDERLYING_ASSET_ADDRESS();
+    }
+
+    function updateAllowance(
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external onlyOwner {
+        _delegationWithSig(value, deadline, v, r, s);
+    }
+
+    function setModel(uint256 _model) external onlyOwner {
+        model = _model;
     }
 
     function _borrowAllowance() internal view returns (uint256) {
@@ -105,5 +138,29 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
 
     function _getAavePool() internal view returns (address) {
         return AaveDebtToken(DEBT_TOKEN).POOL();
+    }
+
+    function _delegationWithSig(
+        uint256 value,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal {
+        AaveDebtToken(DEBT_TOKEN).delegationWithSig(
+            owner,
+            address(this),
+            value,
+            deadline,
+            v,
+            r,
+            s
+        );
+    }
+
+    function _initBorrow(uint256 value, uint256 percentage) private {
+        uint8 decimals = AaveDebtToken(DEBT_TOKEN).decimals();
+        uint256 amount = value.mul(percentage).div(10 ** (decimals + 2));
+        borrow(amount);
     }
 }
