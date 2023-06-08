@@ -50,7 +50,9 @@ export const predictAndSignPermit = async (
   owner: any,
   allowanceAmount: BigNumber
 ) => {
-  const predictedVaultAddress = await factory.predictVaultAddress();
+  const predictedVaultAddress = await factory.predictVaultAddress(
+    owner.address
+  );
   const nonces = await debtToken.nonces(owner.address);
   const signature = await signTypedData(
     owner,
