@@ -112,7 +112,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
       await expect(
@@ -141,7 +141,8 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        ethers.utils.parseEther("10"),
+        // ethers.utils.parseEther("10"),
+        1000,
         ethers.utils.parseEther("2")
       );
       expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
@@ -160,7 +161,7 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        ethers.utils.parseEther("15"),
+        1500,
         ethers.utils.parseEther("2")
       );
       expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
@@ -179,7 +180,7 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        ethers.utils.parseEther("33"),
+        3300,
         ethers.utils.parseEther("2")
       );
       expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
@@ -198,7 +199,7 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        ethers.utils.parseEther("98"),
+        9800,
         ethers.utils.parseEther("2")
       );
       expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
@@ -217,7 +218,7 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        ethers.utils.parseEther("15"),
+        1500,
         ethers.utils.parseEther("2")
       );
       expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(initAmount);
@@ -237,7 +238,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
       await expect(
@@ -252,11 +253,32 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
       await expect(
         vault.connect(manager).changeManager(pool.address)
+      ).to.be.revertedWith("CDV004: Only owner");
+    });
+    it("Should not allow not ownerr calling borrowWithSig", async () => {
+      const [owner, manager, pool] = await ethers.getSigners();
+      const allowanceAmount = ethers.utils.parseEther("100");
+      const { vault } = await deployVault(
+        manager.address,
+        pool.address,
+        allowanceAmount,
+        owner,
+        0,
+        ethers.utils.parseEther("2")
+      );
+      const { v, r, s } = await signPermit(
+        debtToken,
+        owner,
+        ethers.utils.parseEther("100"),
+        vault.address
+      );
+      await expect(
+        vault.connect(pool).borrowWithSig(allowanceAmount, 2661766724, v, r, s)
       ).to.be.revertedWith("CDV004: Only owner");
     });
     it("Should successfully change manager", async () => {
@@ -267,7 +289,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
       expect(await vault.manager()).to.be.eq(manager.address);
@@ -284,7 +306,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
       expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
@@ -298,7 +320,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         model
       );
       expect(await vault.model()).to.be.eq(model);
@@ -314,7 +336,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         model
       );
       await expect(
@@ -331,7 +353,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         model
       );
       expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
@@ -354,7 +376,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         model
       );
       expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
@@ -377,7 +399,7 @@ describe("Credit Delegation Vault", () => {
         pool.address,
         allowanceAmount,
         owner,
-        ethers.utils.parseEther("0"),
+        0,
         model
       );
       expect(await vault.borrowAllowance()).to.be.eq(allowanceAmount);
@@ -404,7 +426,7 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        BigNumber.from(0),
+        0,
         BigNumber.from(2)
       );
 
@@ -426,7 +448,7 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        BigNumber.from(0),
+        0,
         BigNumber.from(2)
       );
 
@@ -448,7 +470,7 @@ describe("Credit Delegation Vault", () => {
         atomicaPool.address,
         amount,
         owner,
-        BigNumber.from(0),
+        0,
         BigNumber.from(2)
       );
 
@@ -456,6 +478,62 @@ describe("Credit Delegation Vault", () => {
       await expect(
         vault.borrow(ethers.utils.parseEther("1000"))
       ).to.be.revertedWith("ERC20: transfer amount exceeds balance");
+      expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(
+        ethers.utils.parseEther("0")
+      );
+      expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(
+        ethers.utils.parseEther("0")
+      );
+      expect(await vault.loanAmount()).to.be.eq(ethers.utils.parseEther("0"));
+    });
+    it("Should borrow successfully if owner calls borrowWithSig", async () => {
+      const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
+      const { vault } = await deployVault(
+        manager.address,
+        atomicaPool.address,
+        ethers.utils.parseEther("0"),
+        owner,
+        0,
+        BigNumber.from(2)
+      );
+      await fundAavePool(amount);
+      const { v, r, s } = await signPermit(
+        debtToken,
+        owner,
+        amount,
+        vault.address
+      );
+      const tx = await vault.borrowWithSig(amount, 2661766724, v, r, s);
+      const receipt = await tx.wait();
+      const borrowEvent = getFromEvent(receipt, "Borrow");
+      expect(borrowEvent[1]).to.be.eq(owner.address);
+      expect(borrowEvent[2]).to.be.eq(amount);
+      expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(amount);
+      expect(await tokenErc20.balanceOf(atomicaPool.address)).to.be.eq(amount);
+      expect(await vault.loanAmount()).to.be.eq(amount);
+    });
+    it("Shouldnt borrow if owner calls borrowWithSig with wrong signature", async () => {
+      const [owner, manager] = await ethers.getSigners();
+      const amount = ethers.utils.parseEther("100");
+      const { vault } = await deployVault(
+        manager.address,
+        atomicaPool.address,
+        ethers.utils.parseEther("0"),
+        owner,
+        0,
+        BigNumber.from(2)
+      );
+      await fundAavePool(amount);
+      const { v, r, s } = await signPermit(
+        debtToken,
+        owner,
+        ethers.utils.parseEther("90"),
+        vault.address
+      );
+      const tx = await expect(
+        vault.borrowWithSig(amount, 2661766724, v, r, s)
+      ).to.be.revertedWith("ERC20Permit: invalid signature");
       expect(await atomicaPool.balanceOf(owner.address)).to.be.eq(
         ethers.utils.parseEther("0")
       );
@@ -508,7 +586,7 @@ const deployVault = async (
   pool: string,
   allowanceAmount: BigNumber,
   owner: any,
-  percentage: BigNumber,
+  percentage: number,
   model: BigNumber,
   sixDecimals?: boolean
 ) => {

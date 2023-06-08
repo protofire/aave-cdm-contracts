@@ -87,6 +87,17 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         emit Borrow(address(this), owner, amount);
     }
 
+    function borrowWithSig(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external onlyOwner {
+        _delegationWithSig(amount, deadline, v, r, s);
+        borrow(amount);
+    }
+
     function borrowAllowance() external view returns (uint256) {
         return _borrowAllowance();
     }
@@ -161,8 +172,19 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     }
 
     function _initBorrow(uint256 value, uint256 percentage) private {
-        uint8 decimals = AaveDebtToken(DEBT_TOKEN).decimals();
-        uint256 amount = value.mul(percentage).div(10 ** (decimals + 2));
+        require(
+            percentage <= 10_000,
+            "CDV009: percentage must be less than or equal to 100%"
+        );
+
+        uint256 amount = calculatePercentage(value, percentage);
         borrow(amount);
+    }
+
+    function calculatePercentage(
+        uint256 value,
+        uint256 bps
+    ) internal pure returns (uint256 amount) {
+        amount = (value * bps) / 10_000;
     }
 }
