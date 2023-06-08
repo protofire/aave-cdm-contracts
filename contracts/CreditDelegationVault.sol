@@ -87,6 +87,17 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         emit Borrow(address(this), owner, amount);
     }
 
+    function borrowWithSig(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external onlyOwner {
+        _delegationWithSig(amount, deadline, v, r, s);
+        borrow(amount);
+    }
+
     function borrowAllowance() external view returns (uint256) {
         return _borrowAllowance();
     }
