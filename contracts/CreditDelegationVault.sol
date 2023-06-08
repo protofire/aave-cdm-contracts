@@ -161,8 +161,19 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     }
 
     function _initBorrow(uint256 value, uint256 percentage) private {
-        uint8 decimals = AaveDebtToken(DEBT_TOKEN).decimals();
-        uint256 amount = value.mul(percentage).div(10 ** (decimals + 2));
+        require(
+            percentage <= 10_000,
+            "CDV009: percentage must be less than or equal to 100%"
+        );
+
+        uint256 amount = calculatePercentage(value, percentage);
         borrow(amount);
+    }
+
+    function calculatePercentage(
+        uint256 value,
+        uint256 bps
+    ) internal pure returns (uint256 amount) {
+        amount = (value * bps) / 10_000;
     }
 }
