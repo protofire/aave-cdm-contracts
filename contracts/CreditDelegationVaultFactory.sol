@@ -66,8 +66,10 @@ contract CreditDelegationVaultFactory {
         return _nonces[owner].current();
     }
 
-    function predictVaultAddress() external view returns (address predicted) {
-        uint256 currentNonce = _nonces[msg.sender].current();
+    function predictVaultAddress(
+        address owner
+    ) external view returns (address predicted) {
+        uint256 currentNonce = _nonces[owner].current();
         bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
         predicted = Clones.predictDeterministicAddress(
             CDV_IMPLEMENTATION,
