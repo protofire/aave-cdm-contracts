@@ -64,7 +64,7 @@ describe("Credit Delegation Vault Factory", () => {
         v,
         r,
         s,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
       const receipt = await tx.wait();
@@ -109,7 +109,7 @@ describe("Credit Delegation Vault Factory", () => {
         v,
         r,
         s,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
 
@@ -128,7 +128,7 @@ describe("Credit Delegation Vault Factory", () => {
         sig.v,
         sig.r,
         sig.s,
-        ethers.utils.parseEther("0"),
+        0,
         ethers.utils.parseEther("2")
       );
       const receipt1 = await tx1.wait();

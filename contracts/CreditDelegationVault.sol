@@ -10,12 +10,15 @@ import "./interfaces/AaveDebtToken.sol";
 import "./interfaces/ICreditDelegationVault.sol";
 import "./interfaces/IAavePool.sol";
 import "./interfaces/IAtomicaPool.sol";
+import "./interfaces/IAtomicaRiskPoolController.sol";
+import "./CreditDelegationVaultFactory.sol";
 
 contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     using SafeMath for uint;
     using ECDSA for bytes32;
 
     address factory;
+    address rpc;
     address public owner;
     address public manager;
     address public ATOMICA_POOL;
@@ -48,6 +51,8 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         ATOMICA_POOL = _atomicaPool;
         DEBT_TOKEN = _debtToken;
         factory = msg.sender;
+        rpc = CreditDelegationVaultFactory(factory)
+            .ATOMICA_RISK_POOL_CONTROLLER();
         model = _model;
         _delegationWithSig(_value, _deadline, _v, _r, _s);
         if (_percentage > 0) {
@@ -85,6 +90,17 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         _depositToPool(asset, amount);
         _transferPoolTokens();
         emit Borrow(address(this), owner, amount);
+    }
+
+    function borrowWithSig(
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external onlyOwner {
+        _delegationWithSig(amount, deadline, v, r, s);
+        borrow(amount);
     }
 
     function borrowAllowance() external view returns (uint256) {
@@ -132,10 +148,15 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
 
     function _depositToPool(address asset, uint256 amount) internal {
         require(
-            IERC20(asset).approve(ATOMICA_POOL, amount),
+            IERC20(asset).approve(rpc, amount),
             "CDV007: Failed to approve tokens to deposit on Atomica"
         );
-        IAtomicaPool(ATOMICA_POOL).deposit(amount);
+        IAtomicaRiskPoolController(rpc).deposit(
+            ATOMICA_POOL,
+            amount,
+            address(this),
+            0
+        );
     }
 
     function _getAavePool() internal view returns (address) {
@@ -161,8 +182,19 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     }
 
     function _initBorrow(uint256 value, uint256 percentage) private {
-        uint8 decimals = AaveDebtToken(DEBT_TOKEN).decimals();
-        uint256 amount = value.mul(percentage).div(10 ** (decimals + 2));
+        require(
+            percentage <= 10_000,
+            "CDV009: percentage must be less than or equal to 100%"
+        );
+
+        uint256 amount = calculatePercentage(value, percentage);
         borrow(amount);
+    }
+
+    function calculatePercentage(
+        uint256 value,
+        uint256 bps
+    ) internal pure returns (uint256 amount) {
+        amount = (value * bps) / 10_000;
     }
 }

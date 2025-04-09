@@ -6,13 +6,12 @@ Aave credit delegation is a collection of smart contracts designed to bring peer
 
 ## Table of Contents
 
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-- [Usage](#usage)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [License](#license)
+- [Aave Credit Delegation Contracts](#aave-credit-delegation-contracts)
+  - [Table of Contents](#table-of-contents)
+  - [Getting Started](#getting-started)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+  - [License](#license)
 
 ## Getting Started
 

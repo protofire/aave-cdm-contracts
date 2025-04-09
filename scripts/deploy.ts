@@ -10,7 +10,11 @@ async function main() {
   const CDVFactory = await ethers.getContractFactory(
     "CreditDelegationVaultFactory"
   );
-  const cdvFactory = await CDVFactory.deploy(impl.address);
+  const cdvFactory = await CDVFactory.deploy(
+    impl.address,
+    // Atomica Risk Pool Controller on Sepolia
+    "0x70c9Ff46166257B6Bc3D9615552eA05EbecAf049"
+  );
   await cdvFactory.deployed();
 
   console.log(
