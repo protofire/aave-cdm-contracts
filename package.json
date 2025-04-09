@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "scripts": {
     "test": "REPORT_GAS=true npx hardhat test",
-    "verify": "npx hardhat verify --network mumbai",
-    "deploy": "npx hardhat run scripts/deploy.ts --network mumbai",
+    "verify": "npx hardhat verify --network sepolia",
+    "deploy": "npx hardhat run scripts/deploy.ts --network sepolia",
     "slither": "slither .",
     "compile": "npx hardhat compile"
   },

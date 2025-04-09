@@ -12,15 +12,23 @@ contract CreditDelegationVaultFactory {
     using Counters for Counters.Counter;
 
     address public immutable CDV_IMPLEMENTATION;
+    address public immutable ATOMICA_RISK_POOL_CONTROLLER;
+
     mapping(address => address[]) vaults;
     mapping(address => Counters.Counter) private _nonces;
 
-    constructor(address _impl) {
+    constructor(address _impl, address _atomicaRiskPoolController) {
         require(
             _impl != address(0),
             "CDVF001: Implementation is the zero address"
         );
+
+        require(
+            _atomicaRiskPoolController != address(0),
+            "CDVF001: Atomica Risk Pool Controller is the zero address"
+        );
         CDV_IMPLEMENTATION = _impl;
+        ATOMICA_RISK_POOL_CONTROLLER = _atomicaRiskPoolController;
     }
 
     event VaultCreated(address indexed vault, address indexed owner);
@@ -70,7 +78,7 @@ contract CreditDelegationVaultFactory {
         address owner
     ) external view returns (address predicted) {
         uint256 currentNonce = _nonces[owner].current();
-        bytes32 salt = keccak256(abi.encodePacked(msg.sender, currentNonce));
+        bytes32 salt = keccak256(abi.encodePacked(owner, currentNonce));
         predicted = Clones.predictDeterministicAddress(
             CDV_IMPLEMENTATION,
             salt

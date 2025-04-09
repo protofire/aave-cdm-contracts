@@ -8,8 +8,8 @@ dotenv.config();
 const config: HardhatUserConfig = {
   solidity: "0.8.18",
   networks: {
-    mumbai: {
-      url: process.env.MUMBAI_URL,
+    sepolia: {
+      url: process.env.SEPOLIA_URL,
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
@@ -25,6 +25,7 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: {
       polygonMumbai: process.env.ETHERSCAN_API_KEY || "",
+      sepolia: process.env.ETHERSCAN_API_KEY || "",
     },
   },
 };

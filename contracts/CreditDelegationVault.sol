@@ -10,12 +10,15 @@ import "./interfaces/AaveDebtToken.sol";
 import "./interfaces/ICreditDelegationVault.sol";
 import "./interfaces/IAavePool.sol";
 import "./interfaces/IAtomicaPool.sol";
+import "./interfaces/IAtomicaRiskPoolController.sol";
+import "./CreditDelegationVaultFactory.sol";
 
 contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
     using SafeMath for uint;
     using ECDSA for bytes32;
 
     address factory;
+    address rpc;
     address public owner;
     address public manager;
     address public ATOMICA_POOL;
@@ -48,6 +51,8 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
         ATOMICA_POOL = _atomicaPool;
         DEBT_TOKEN = _debtToken;
         factory = msg.sender;
+        rpc = CreditDelegationVaultFactory(factory)
+            .ATOMICA_RISK_POOL_CONTROLLER();
         model = _model;
         _delegationWithSig(_value, _deadline, _v, _r, _s);
         if (_percentage > 0) {
@@ -143,10 +148,15 @@ contract CreditDelegationVault is ICreditDelegationVault, ReentrancyGuard {
 
     function _depositToPool(address asset, uint256 amount) internal {
         require(
-            IERC20(asset).approve(ATOMICA_POOL, amount),
+            IERC20(asset).approve(rpc, amount),
             "CDV007: Failed to approve tokens to deposit on Atomica"
         );
-        IAtomicaPool(ATOMICA_POOL).deposit(amount);
+        IAtomicaRiskPoolController(rpc).deposit(
+            ATOMICA_POOL,
+            amount,
+            address(this),
+            0
+        );
     }
 
     function _getAavePool() internal view returns (address) {
